@@ -21,7 +21,6 @@ def recevoir(socket_chat, stop):
             print(f"Erreur fatale dans le Thread de reception: {e}")
             stop.set()
             break
-        
     socket_chat.close()
 
 # fonction d'envoi
@@ -38,10 +37,10 @@ def envoyer(socket_chat, adresse, stop):
                 break
             socket_chat.sendto(envoi, adresse)
         except Exception as e:
-            print(f"Erreur fatale dans le Thread de reception: {e}")
+            print(f"Erreur fatale dans le Thread d'envoi: {e}")
             stop.set()
             break
-  
+    socket_chat.close()
         
 # Main
 def chat():
@@ -53,11 +52,9 @@ def chat():
         adresse_destinataire = sys.argv[1]
     
     # verification de l'adresse fournie
-    ip_regex = r'\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b'
-    while True:
-        if re.match(adresse_destinataire, ip_regex):
-            break
-        else:
+    ip_regex = r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+    
+    while not re.match(ip_regex, adresse_destinataire):
             print("Ce n'est pas une adresse IPv4.\n")
             adresse_destinataire = input("Entrez l'ip du destinataire: ")
 
