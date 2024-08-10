@@ -4,6 +4,11 @@ import socket
 import threading
 import sys
 import re
+import json
+
+# Fonctions:
+
+
 
 # Fonction de reception
 def recevoir(socket_chat, stop):
@@ -13,26 +18,32 @@ def recevoir(socket_chat, stop):
     while not stop.is_set():
         try:
             request, hote = socket_chat.recvfrom(2048)
-            message = request.decode("utf-8")
-            print(f"{hote}: {message}")
+            recept_json = request.decode("utf-8")
+            recept = json.loads(recept_json)
+            pseudo = recept.get("pseudo")
+            message = recept.get("message")
+            print(f"{hote[0]}, {pseudo}: {message}")
         except socket.timeout:
             continue
         except Exception as e:
             print(f"Erreur fatale dans le Thread de reception: {e}")
             stop.set()
             break
-    socket_chat.close()
+    
 
 # fonction d'envoi
-def envoyer(socket_chat, adresse, stop):
+def envoyer(socket_chat, adresse, pseudo, stop):
 
     while not stop.is_set():
         try:
             message = input()
-            envoi = message.encode("utf-8")
+            message_json = json.dumps({'pseudo':pseudo, 'message':message})
+            envoi = message_json.encode("utf-8")
             if message.lower() == "quit":
+                message = f"{pseudo} a quitte la discution"
+                message_json = json.dumps({'pseudo':pseudo, 'message':message})
                 print("Fin de la connection ...")
-                socket_chat.sendto(b'Machin a quitte la discution...', adresse)
+                socket_chat.sendto(json.dumps({'pseudo':pseudo, 'message':message}).encode("utf-8"), adresse)
                 stop.set()
                 break
             socket_chat.sendto(envoi, adresse)
@@ -40,7 +51,7 @@ def envoyer(socket_chat, adresse, stop):
             print(f"Erreur fatale dans le Thread d'envoi: {e}")
             stop.set()
             break
-    socket_chat.close()
+    
         
 # Main
 def chat():
@@ -52,11 +63,17 @@ def chat():
         adresse_destinataire = sys.argv[1]
     
     # verification de l'adresse fournie
-    ip_regex = r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+    regex = r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
     
-    while not re.match(ip_regex, adresse_destinataire):
+    while not re.match(regex, adresse_destinataire):
             print("Ce n'est pas une adresse IPv4.\n")
             adresse_destinataire = input("Entrez l'ip du destinataire: ")
+
+    pseudo = ""
+    regex = r'^[a-zA-Z0-9]+$'
+    while not re.match(regex, pseudo):
+        pseudo = input("Entrez votre pseudo (pas de caractere special): ")
+    
 
     # definition des tuples
     adresse_ecoute = ('', 3000)
@@ -76,11 +93,13 @@ def chat():
     thread_recep.start()
 
     # Thread d'envoi
-    thread_envoi = threading.Thread(target=envoyer, args=(socket_chat, adresse_dest, stop))
+    thread_envoi = threading.Thread(target=envoyer, args=(socket_chat, adresse_dest, pseudo, stop))
     thread_envoi.start()
 
     thread_envoi.join()
     thread_recep.join()
+
+    socket_chat.close()
 
 if __name__ == "__main__":
     chat()
